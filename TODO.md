@@ -1,3 +1,5 @@
+- [ ] Refactoring (Always a possibility)
+
 - [x] Colored time info.
 
 - [ ] Implement command history.
@@ -10,4 +12,4 @@
 
 - [ ] Pipes
 
-- [ ] Optimize search for executables in `$PATH` using caches (It is not unnecessary complexity. But, maybe...)
+- [ ] Optimize search for executables in `$PATH` using caches (It is an unnecessary complexity. But, maybe...)
