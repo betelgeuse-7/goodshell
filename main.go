@@ -2,22 +2,33 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
-	"os/exec"
+	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 )
 
 const (
 	ROOT_PROMPT    = "gsh#~ "
 	DEFAULT_PROMPT = "gsh~ "
-	ARROW_KEY_UP   = "\033[A"
-	ARROW_KEY_DOWN = "\033[B"
 )
+
+type ErrNotInPath struct {
+	msg string
+}
+
+func (e ErrNotInPath) Error() string { return e.msg }
 
 type GoodShell struct {
 	History *CommandChain
+	prompt  string
+}
+
+func (g *GoodShell) SetPrompt(p string) {
+	g.prompt = p
 }
 
 // return "gsh#~" if the user is root; else "gsh~".
@@ -37,17 +48,20 @@ func getTime() string {
 	if minute < 10 {
 		minuteStr = "0" + minuteStr
 	}
-	return fmt.Sprintf("\033[33m{%d:%s}\033[0m", hour, minuteStr)
+	return fmt.Sprintf("\033[33m(%d:%s)\033[0m", hour, minuteStr)
 }
 
 func main() {
-	gsh := &GoodShell{History: NewCommandChain("")}
+	gsh := &GoodShell{}
+	gsh.SetPrompt(getPrompt())
+	gsh.REPL()
+}
 
-	prompt := getPrompt()
-	reader := bufio.NewReader(os.Stdin)
+// Read-Evaluate-Print Loop
+func (g *GoodShell) REPL() {
 	for {
-		fmt.Printf("%s %s", getTime(), prompt)
-
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Printf("%s %s", getTime(), g.prompt)
 		command, err := reader.ReadString('\n')
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -64,14 +78,103 @@ func main() {
 			continue
 		}
 
-		cmd := exec.Command(parts[0], parts[1:]...)
-		cmd.Stderr = os.Stderr
-		cmd.Stdout = os.Stdout
-		err = cmd.Run()
+		programName, argv := parts[0], parts[1:]
+		exeLoc, err := getAbsoluteExeLoc(programName)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			if errors.Is(ErrNotInPath{}, err) {
+				reportErr("The program %s could not be found in $PATH\n", programName)
+			} else {
+				reportErr("Could not get location of %s", programName)
+			}
+			continue
 		}
-		cmdChain := NewCommandChain(cmd.String())
-		gsh.History.Add(cmdChain)
+		err = checkFileIsExecutable(exeLoc)
+		if err != nil {
+			reportErr(err.Error())
+			continue
+		}
+
+		pid, err := syscall.ForkExec(exeLoc, argv, &syscall.ProcAttr{
+			Env: os.Environ(),
+			Files: []uintptr{
+				os.Stdout.Fd(),
+				os.Stdin.Fd(),
+				os.Stderr.Fd(),
+			},
+		})
+		if err != nil {
+			reportErrFatal("Failed to execute command '%s'\n", strings.Join(parts, " "))
+		}
+
+		var waitStatus syscall.WaitStatus
+		_, err = syscall.Wait4(pid, &waitStatus, 0, nil)
+		if err != nil {
+			reportErrFatal("Failed to wait for process %d\n", pid)
+		}
+
+		if code := waitStatus.ExitStatus(); code > 0 {
+			fmt.Printf("Process exited with status code %d\n", waitStatus.ExitStatus())
+		}
 	}
+}
+
+// return the absolute file path to the program. check if the programName is a
+// relative path; or if it should be searched for in $PATH.
+func getAbsoluteExeLoc(programName string) (string, error) {
+	isRelativePath := strings.Contains(programName, "/")
+	if isRelativePath {
+		return filepath.Abs(programName)
+	}
+
+	exeLoc, err := getExeLocationFromPath(programName)
+	if err != nil {
+		return "", err
+	}
+	return exeLoc, nil
+}
+
+// write formatted error message to stderr, and exit the process (the shell) with
+// exit code 1.
+func reportErrFatal(msgf string, args ...any) {
+	fmt.Fprintf(os.Stderr, msgf, args...)
+	os.Exit(1)
+}
+
+func reportErr(msgf string, args ...any) {
+	fmt.Fprintf(os.Stderr, msgf, args...)
+}
+
+func checkFileIsExecutable(exeLoc string) error {
+	info, err := os.Stat(exeLoc)
+	if err != nil {
+		if !(os.IsNotExist(err)) {
+			return fmt.Errorf("This should not be printed. This is a bug.\n%s\n", err)
+		}
+		return fmt.Errorf("No such file or directory: %s\n", exeLoc)
+	}
+	// check if file is executable by the owner, group, or other users.
+	isExe := info.Mode()&0111 != 0
+	if !(isExe) {
+		return fmt.Errorf("%s is not an executable program\n", exeLoc)
+	}
+	return nil
+}
+
+func getExeLocationFromPath(programName string) (string, error) {
+	path := os.Getenv("PATH")
+	locs := strings.Split(path, ":")
+	for _, l := range locs {
+		entries, err := os.ReadDir(l)
+		if err != nil {
+			return "", err
+		}
+		for _, e := range entries {
+			potentialExe_Name := e.Name()
+			if potentialExe_Name == programName {
+				exePath := fmt.Sprintf("%s/%s", l, potentialExe_Name)
+				return exePath, nil
+			}
+		}
+	}
+	return "", ErrNotInPath{}
 }

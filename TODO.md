@@ -9,3 +9,5 @@
 - [ ] A scripting language (.gsh).
 
 - [ ] Pipes
+
+- [ ] Optimize search for executables in `$PATH` using caches (It is not unnecessary complexity. But, maybe...)
