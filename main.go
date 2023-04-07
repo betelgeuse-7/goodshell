@@ -24,14 +24,10 @@ func (e ErrNotInPath) Error() string { return e.msg }
 
 type GoodShell struct {
 	History *CommandChain
-	prompt  string
-}
-
-func (g *GoodShell) SetPrompt(p string) {
-	g.prompt = p
 }
 
 // return "gsh#~" if the user is root; else "gsh~".
+// also include cwd.
 func getPrompt() string {
 	prompt := DEFAULT_PROMPT
 	if os.Getuid() == 0 {
@@ -51,9 +47,34 @@ func getTime() string {
 	return fmt.Sprintf("\033[33m(%d:%s)\033[0m", hour, minuteStr)
 }
 
+func getCwd() string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		reportErrFatal("Unable to get current working directory\n")
+	}
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		reportErrFatal("Unable to get $HOME\n")
+	}
+	if strings.HasPrefix(cwd, homeDir) {
+		cwd = strings.Replace(cwd, homeDir, "~", 1)
+	}
+	return cwd
+}
+
+func makeHeadline() string {
+	var headline strings.Builder
+	headline.WriteString(getTime())
+	headline.WriteByte(' ')
+	headline.WriteString(getCwd())
+	headline.WriteString(" • ")
+	headline.WriteString(getPrompt())
+	headline.WriteByte(' ')
+	return headline.String()
+}
+
 func main() {
 	gsh := &GoodShell{}
-	gsh.SetPrompt(getPrompt())
 	gsh.REPL()
 }
 
@@ -61,7 +82,7 @@ func main() {
 func (g *GoodShell) REPL() {
 	for {
 		reader := bufio.NewReader(os.Stdin)
-		fmt.Printf("%s %s", getTime(), g.prompt)
+		fmt.Print(makeHeadline())
 		command, err := reader.ReadString('\n')
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -79,6 +100,13 @@ func (g *GoodShell) REPL() {
 		}
 
 		programName, argv := parts[0], parts[1:]
+		if programName == "cd" {
+			if err := cd(argv); err != nil {
+				reportErr(err.Error())
+			}
+			continue
+		}
+
 		exeLoc, err := getAbsoluteExeLoc(programName)
 		if err != nil {
 			if errors.Is(ErrNotInPath{}, err) {

@@ -1,4 +1,5 @@
 - [ ] Refactoring (Always a possibility)
+  - [ ] Using newlines (\n) in error types is kind of wrong.
 
 - [x] Colored time info.
 
