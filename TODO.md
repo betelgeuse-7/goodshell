@@ -1,6 +1,3 @@
-- [ ] Refactoring (Always a possibility)
-  - [ ] Using newlines (\n) in error types is kind of wrong.
-
 - [x] Colored time info.
 
 - [ ] Implement command history.
@@ -14,3 +11,5 @@
 - [ ] Pipes
 
 - [ ] Optimize search for executables in `$PATH` using caches (It is an unnecessary complexity. But, maybe...)
+
+- [ ] Zsh-style directory changing (You can just give a directory like `/usr/bin`, and zsh will `cd` you into that directory.)
