@@ -6,10 +6,6 @@
 - [ ] `cd` auto-completion.
   - [ ] This also requires the terminal driver to be in raw mode.
 
-- [ ] A scripting language (.gsh).
-
 - [ ] Pipes
-
-- [ ] Optimize search for executables in `$PATH` using caches (It is an unnecessary complexity. But, maybe...)
 
 - [ ] Zsh-style directory changing (You can just give a directory like `/usr/bin`, and zsh will `cd` you into that directory.)

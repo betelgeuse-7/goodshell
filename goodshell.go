@@ -50,9 +50,16 @@ func fatal(msgf string, args ...any) {
 	syscall.Exit(1)
 }
 
+func errorf(msgf string, args ...any) {
+	fmt.Fprintf(os.Stderr, msgf+"\n", args...)
+}
+
 func (g *GoodShell) eval(cmdx []Command) {
 	for _, c := range cmdx {
 		exeLoc := g.getAbsoluteExePath(c.Program)
+		if exeLoc == "" {
+			continue
+		}
 		if !(g.isFileExecutable(exeLoc)) {
 			fatal("Specified file %s is not an executable program", c.Program)
 		}
@@ -178,8 +185,8 @@ func (g *GoodShell) getProgramLocFromPath(programName string) string {
 			}
 		}
 	}
-	fatal("Program %s could not be found in $PATH", programName)
-	return "getProgramLocFromPath Unreachable"
+	errorf("Program %s could not be found in $PATH", programName)
+	return ""
 }
 
 func (g *GoodShell) isFileExecutable(loc string) bool {
