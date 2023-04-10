@@ -200,7 +200,8 @@ func (g *GoodShell) isFileExecutable(loc string) bool {
 	// check if file is executable by the owner, group, or other users.
 	isExe := info.Mode()&0111 != 0
 	if !(isExe) {
-		fatal("%s is not an executable program", loc)
+		errorf("%s is not an executable program", loc)
+		return false
 	}
 	return true
 }
