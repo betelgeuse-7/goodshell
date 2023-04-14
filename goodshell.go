@@ -54,22 +54,18 @@ func errorf(msgf string, args ...any) {
 	fmt.Fprintf(os.Stderr, msgf+"\n", args...)
 }
 
-func (g *GoodShell) eval(cmdx []Command) {
-	for _, c := range cmdx {
-		exeLoc := g.getAbsoluteExePath(c.Program)
-		if exeLoc == "" {
-			continue
-		}
-		if !(g.isFileExecutable(exeLoc)) {
-			fatal("Specified file %s is not an executable program", c.Program)
-		}
-		c.ProgramAbsPath = exeLoc
-		// TODO Pipes
-		g.run(c)
+func (g *GoodShell) eval(cmdx []*Command) {
+	g.setAbsPaths(cmdx)
+
+	if len(cmdx) == 1 {
+		g.forkExec(cmdx[0])
+		return
 	}
+
+	fatal("TODO: pipes")
 }
 
-func (g *GoodShell) run(cmd Command) {
+func (g *GoodShell) forkExec(cmd *Command) {
 	pid, err := syscall.ForkExec(cmd.ProgramAbsPath, cmd.Argv, &syscall.ProcAttr{
 		Env: os.Environ(),
 		Files: []uintptr{
@@ -93,11 +89,11 @@ func (g *GoodShell) run(cmd Command) {
 	}
 }
 
-func (g *GoodShell) parse(line string) []Command {
-	var res []Command
+func (g *GoodShell) parse(line string) []*Command {
+	var res []*Command
 	parts := strings.Split(line, "|")
 	for _, p := range parts {
-		cmd := Command{}
+		cmd := &Command{}
 		p = strings.TrimSpace(p)
 		splitted := strings.SplitAfterN(p, " ", 2)
 		cmd.Program = strings.TrimSpace(splitted[0])
@@ -118,6 +114,19 @@ func (g *GoodShell) read() string {
 	}
 	line = strings.TrimSuffix(line, "\n")
 	return line
+}
+
+func (g *GoodShell) setAbsPaths(cmdx []*Command) {
+	for _, c := range cmdx {
+		exeLoc := g.getAbsoluteExePath(c.Program)
+		if exeLoc == "" {
+			continue
+		}
+		if !(g.isFileExecutable(exeLoc)) {
+			errorf("Specified file %s is not an executable program", c.Program)
+		}
+		c.ProgramAbsPath = exeLoc
+	}
 }
 
 func (g *GoodShell) makeHeadlineHour() string {
@@ -195,7 +204,8 @@ func (g *GoodShell) isFileExecutable(loc string) bool {
 		if !(os.IsNotExist(err)) {
 			fatal("Unknown error: %s", err.Error())
 		}
-		fatal("No such file or directory: %s", loc)
+		errorf("No such file or directory: %s", loc)
+		return false
 	}
 	// check if file is executable by the owner, group, or other users.
 	isExe := info.Mode()&0111 != 0
