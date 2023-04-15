@@ -11,3 +11,5 @@
 - [ ] Zsh-style directory changing (You can just give a directory like `/usr/bin`, and zsh will `cd` you into that directory.)
 
 - [ ] Redirection (`>`)
+
+- [ ] Parallel commands (`cmd & cmd1 & cmd2`)
