@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "*.v": "v",
+        "*.fasm": "fasm",
+        "stdlib.h": "c"
+    }
+}
