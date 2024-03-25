@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+
+#include "runcmd.h"
 
 int main() {
-	while (1) {
+	while (true) {
         char *cmd = NULL;
         size_t size = 0;
         
@@ -13,8 +16,7 @@ int main() {
 			exit(EXIT_FAILURE);
 		}
 
-		printf("got command %s", cmd);
-
+		run_cmd(cmd);
 		free(cmd);
 	}
 
