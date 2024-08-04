@@ -1,14 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
 
-#include "ParseTree.h";
+#include "Buffer.h"
 
-int process_command(char *cmd);
+bool process_line(char *cmd);
+bool is_letter(char);
 
 int main(void) {
-    while (1)
+    while (true)
     {
-        puts("gsh~> ");
+        printf("gsh~> ");
         char *line = "";
         size_t len = 0;
         size_t read;
@@ -18,14 +21,36 @@ int main(void) {
             return 1;
         }
 
-        if ((process_command(line)) == -1) {
+        if (!process_line(line)) {
             puts("Error handling the command");
             return 1;
         }
     }
 }
 
-int process_command(char *cmd) {
-    ParseTree *tree = parse_command(cmd);
-    // evaluate the tree
+bool process_line(char *line) {
+    if (strlen(line) == 0) {
+        return true;
+    }
+
+    if (is_letter(line[0])) {
+        char *cmd = NULL;
+        int i = 0;
+        Buffer *buf = new_buffer();
+
+        while (true)
+        {
+            if (!is_letter(line[i])) break;
+            Buffer_append(buf, line[i]);
+            i++;
+        }
+
+        Buffer_print(buf);
+    }
+
+    return true;
+}
+
+bool is_letter(char ch) {
+    return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
 }
